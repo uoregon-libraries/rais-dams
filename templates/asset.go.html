@@ -9,8 +9,8 @@
 <script type="text/javascript">
   var viewer = OpenSeadragon({
     id: "openseadragon1",
-    prefixUrl: "/osd/images/",
-    tileSources: "/iiif/{{.Asset.IIIFID}}/info.json",
+    prefixUrl: "{{BasePath}}/static/osd/images/",
+    tileSources: "{{BasePath}}/iiif/{{.Asset.ID}}/info.json",
     showNavigator: true,
     sequenceMode: true,
     showNavigator: true,

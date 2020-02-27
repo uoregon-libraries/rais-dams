@@ -5,42 +5,78 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-type asset struct {
-	Filename string
-	ID       string
-	Title    string
-}
-
-var emptyAsset = asset{}
-
-var jp2s []asset
+var imgdir = "/var/local/images"
+var basePath string
 var indexT, assetT, adminT *template.Template
+var root *collection
 
 func main() {
+	basePath = "/"
 	readAssets()
 	preptemplates()
 	serve()
 }
 
 func readAssets() {
-	var imgdir = "/var/local/images"
-	var files, err = filepath.Glob(filepath.Join(imgdir, "*.jp2"))
+	root = &collection{Title: "Root", ID: "", RelPath: ""}
+	crawlAssets(root)
+}
+
+func crawlAssets(c *collection) error {
+	var fullpath = filepath.Join(imgdir, c.RelPath)
+	log.Printf("Crawling %q for collections / images", fullpath)
+
+	var infos, err = ioutil.ReadDir(fullpath)
 	if err != nil {
-		log.Fatalf("Unable to read images in %q: %s", imgdir, err)
+		return fmt.Errorf("reading dir %q: %w", c.RelPath, err)
 	}
 
-	for _, f := range files {
-		var id = url.PathEscape(f)
-		jp2s = append(jp2s, asset{Filename: f, ID: id, Title: "Untitled thing"})
+	for _, info := range infos {
+		// Descend into dirs after creating a sub-collection
+		if info.IsDir() {
+			log.Printf("Adding collection %q as a child", info.Name())
+			var subColl = c.addChild(info.Name())
+			err = crawlAssets(subColl)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Don't bother with anything else - dirs and regular files only
+		if !info.Mode().IsRegular() {
+			continue
+		}
+
+		// Title files: our first piece of metadata
+		if info.Name() == "title" {
+			log.Println("Reading title for collection")
+			var titleFile = filepath.Join(imgdir, c.RelPath, "title")
+			var contents []byte
+			contents, err = ioutil.ReadFile(titleFile)
+			if err != nil {
+				return fmt.Errorf("reading %q: %w", titleFile, err)
+			}
+			c.Title = strings.TrimSpace(string(contents))
+		}
+
+		if strings.HasSuffix(info.Name(), ".jp2") {
+			log.Printf("Adding image asset %q to collection", info.Name())
+			var asset = c.addAsset(info.Name())
+			jp2s[asset.ID] = asset
+		}
 	}
-	log.Printf("Indexed %d assets", len(jp2s))
+
+	log.Printf("Indexed %d assets", len(c.JP2s))
+	return nil
 }
 
 func preptemplates() {
@@ -55,6 +91,15 @@ func preptemplates() {
 	}
 
 	var root = template.New("layout")
+	root.Funcs(template.FuncMap{
+		"BasePath": func() string {
+			if basePath == "/" {
+				return ""
+			} else {
+				return basePath
+			}
+		},
+	})
 	var layout = template.Must(root.ParseFiles("templates/layout.go.html"))
 	indexT = template.Must(template.Must(layout.Clone()).ParseFiles("templates/index.go.html"))
 	assetT = template.Must(template.Must(layout.Clone()).ParseFiles("templates/asset.go.html"))

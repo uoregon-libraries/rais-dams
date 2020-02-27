@@ -2,13 +2,23 @@
 
 {{block "content" .}}
   <h1>RAIS: S3 Images Demo</h1>
-  Images found in /var/www/images:
+  Browsing {{.Collection.Title}}
 
   <div>
-    {{range .Assets}}
+    {{range .Collection.Collections}}
     <div style="display: inline-block; width: 30%; height: 240px; padding: 0.5em;">
-      <a href="/asset/{{.ID}}">
-        <img src="/iiif/{{.ID}}/full/,240/0/default.jpg" alt="{{.Title}}" height="240px" border=0 />
+      <a href="{{BasePath}}/index/{{.ID}}">
+        <p>Browse {{.Title}}</p>
+      </a>
+    </div>
+    {{end}}
+  </div>
+
+  <div>
+    {{range .Collection.JP2s}}
+    <div style="display: inline-block; width: 30%; height: 240px; padding: 0.5em;">
+      <a href="{{BasePath}}/asset/{{.ID}}">
+        <img src="{{BasePath}}/iiif/{{.ID}}/full/,240/0/default.jpg" height="240px" border=0 />
         <p>{{.Title}}</p>
       </a>
     </div>
