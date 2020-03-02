@@ -26,7 +26,7 @@ type collection struct {
 }
 
 func (c *collection) addChild(name string) *collection {
-	var child = &collection{RelPath: filepath.Join(c.RelPath, name), Parent: c}
+	var child = &collection{RelPath: filepath.Join(c.RelPath, name), Parent: c, Title: name}
 	c.Collections = append(c.Collections, child)
 	child.ID = url.PathEscape(child.RelPath)
 	collections[child.ID] = child
